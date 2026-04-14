@@ -1,0 +1,18 @@
+{
+  "empresa": "VibeFinanz Corp - Advanced",
+  "periodo": "Q1 2026",
+  "configuracion": {
+    "precioPromedioVenta": 150,
+    "costoVariableUnitario": 85
+  },
+  "transacciones": [
+    { "id": 1, "categoria": "Ventas Software", "monto": 450000, "esInversion": false, "esCostoDirecto": false, "esFijo": false },
+    { "id": 2, "categoria": "Servicios Cloud", "monto": 50000, "esInversion": false, "esCostoDirecto": false, "esFijo": false },
+    { "id": 3, "categoria": "Servidores AWS", "monto": -180000, "esInversion": false, "esCostoDirecto": true, "esFijo": false },
+    { "id": 4, "categoria": "Licencias DB", "monto": -100000, "esInversion": false, "esCostoDirecto": true, "esFijo": false },
+    { "id": 5, "categoria": "Sueldos Equipo", "monto": -80000, "esInversion": false, "esCostoDirecto": false, "esFijo": true },
+    { "id": 6, "categoria": "Alquiler Oficina", "monto": -40000, "esInversion": false, "esCostoDirecto": false, "esFijo": true },
+    { "id": 7, "categoria": "Marketing Digital", "monto": -25000, "esInversion": false, "esCostoDirecto": false, "esFijo": false },
+    { "id": 8, "categoria": "Nueva Planta", "monto": -750000, "esInversion": true, "esCostoDirecto": false, "esFijo": false }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "empresa": "VibeFinanz Corp - Advanced",
+  "periodo": "Q1 2026",
+  "configuracion": {
+    "precioPromedioVenta": 150,
+    "costoVariableUnitario": 85
+  },
+  "transacciones": [
+    { "id": "t1", "categoria": "Ventas Software", "monto": 450000, "esInversion": false, "esCostoDirecto": false, "esFijo": false, "fecha": "2026-01-15", "descripcion": "Licencias anuales vendidas Q1" },
+    { "id": "t2", "categoria": "Servicios Cloud", "monto": 50000, "esInversion": false, "esCostoDirecto": false, "esFijo": false, "fecha": "2026-01-28", "descripcion": "Contratos de soporte cloud" },
+    { "id": "t3", "categoria": "Servidores AWS", "monto": -180000, "esInversion": false, "esCostoDirecto": true, "esFijo": false, "fecha": "2026-02-01", "descripcion": "Infraestructura de producción" },
+    { "id": "t4", "categoria": "Licencias DB", "monto": -100000, "esInversion": false, "esCostoDirecto": true, "esFijo": false, "fecha": "2026-02-10", "descripcion": "Oracle + PostgreSQL licenses" },
+    { "id": "t5", "categoria": "Sueldos Equipo", "monto": -80000, "esInversion": false, "esCostoDirecto": false, "esFijo": true, "fecha": "2026-02-28", "descripcion": "Nómina mensual equipo tech" },
+    { "id": "t6", "categoria": "Alquiler Oficina", "monto": -40000, "esInversion": false, "esCostoDirecto": false, "esFijo": true, "fecha": "2026-03-01", "descripcion": "Sede central + sucursal norte" },
+    { "id": "t7", "categoria": "Marketing Digital", "monto": -25000, "esInversion": false, "esCostoDirecto": false, "esFijo": false, "fecha": "2026-03-05", "descripcion": "Campañas Google Ads + Meta" },
+    { "id": "t8", "categoria": "Nueva Planta", "monto": -750000, "esInversion": true, "esCostoDirecto": false, "esFijo": false, "fecha": "2026-03-15", "descripcion": "Inversión en planta industrial norte" }
+  ],
+  "presupuesto": [
+    { "id": "p1", "categoria": "Servidores AWS", "limite": 200000, "descripcion": "Infraestructura cloud máxima" },
+    { "id": "p2", "categoria": "Marketing Digital", "limite": 40000, "descripcion": "Presupuesto marketing trimestral" },
+    { "id": "p3", "categoria": "Sueldos Equipo", "limite": 100000, "descripcion": "Nómina máxima mensual" },
+    { "id": "p4", "categoria": "Alquiler Oficina", "limite": 45000, "descripcion": "Costos de sede máximos" }
+  ]
+}
