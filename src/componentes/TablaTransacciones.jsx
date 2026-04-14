@@ -1,369 +1,180 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Search, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight,
-  TrendingUp, TrendingDown, Layers, RefreshCw, CheckCircle2, AlertCircle,
-} from 'lucide-react';
-import {
-  obtenerTransacciones, crearTransaccion, actualizarTransaccion, eliminarTransaccion,
-} from '../servicios/apiServicio';
-import '../estilos/Tabla.css';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { getTransacciones, crearTransaccion, eliminarTransaccion } from '../servicios/apiServicio';
+import { Trash2, Plus, ArrowUpRight, ArrowDownRight, Tag } from 'lucide-react';
+import '../estilos/Dashboard.css';
 
-const ITEMS_POR_PAGINA = 5;
-
-const FILTROS = [
-  { id: '',          label: 'Todos',    icon: <Layers size={12} />,      activeClass: 'active' },
-  { id: 'ingreso',   label: 'Ingresos', icon: <TrendingUp size={12} />,  activeClass: 'active' },
-  { id: 'gasto',     label: 'Gastos',   icon: <TrendingDown size={12} />,activeClass: 'active-gasto' },
-  { id: 'inversion', label: 'Inversión',icon: <Layers size={12} />,      activeClass: 'active-inversion' },
-];
-
-const FORM_VACIO = {
-  categoria: '', monto: '', descripcion: '',
-  fecha: new Date().toISOString().split('T')[0],
-  esInversion: false, esCostoDirecto: false, esFijo: false,
-};
-
-/* ── Subcomponente: Modal formulario ─────────────────────────── */
-const ModalTransaccion = ({ transaccion, onGuardar, onCerrar, cargando }) => {
-  const [form, setForm] = useState(transaccion || FORM_VACIO);
-
-  const actualizar = (campo, valor) => setForm(prev => ({ ...prev, [campo]: valor }));
-
-  const enviar = () => {
-    if (!form.categoria || !form.monto) return;
-    onGuardar(form);
-  };
-
-  return (
-    <motion.div
-      className="modal-overlay"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={(e) => e.target === e.currentTarget && onCerrar()}
-    >
-      <motion.div
-        className="modal-card"
-        initial={{ scale: 0.92, y: 30 }} animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.92, y: 30 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-      >
-        <div className="modal-header">
-          <h3>{transaccion?.id ? 'Editar Transacción' : 'Nueva Transacción'}</h3>
-          <button className="modal-close" onClick={onCerrar}><X size={16} /></button>
-        </div>
-
-        <div className="form-grid">
-          <div className="form-field full">
-            <label className="form-label">Categoría *</label>
-            <input
-              className="form-input"
-              placeholder="Ej: Ventas Software"
-              value={form.categoria}
-              onChange={e => actualizar('categoria', e.target.value)}
-            />
-          </div>
-          <div className="form-field">
-            <label className="form-label">Monto $ *</label>
-            <input
-              className="form-input"
-              type="number"
-              placeholder="Positivo = ingreso, Negativo = gasto"
-              value={form.monto}
-              onChange={e => actualizar('monto', e.target.value)}
-            />
-          </div>
-          <div className="form-field">
-            <label className="form-label">Fecha</label>
-            <input
-              className="form-input"
-              type="date"
-              value={form.fecha}
-              onChange={e => actualizar('fecha', e.target.value)}
-            />
-          </div>
-          <div className="form-field full">
-            <label className="form-label">Descripción</label>
-            <input
-              className="form-input"
-              placeholder="Descripción opcional..."
-              value={form.descripcion}
-              onChange={e => actualizar('descripcion', e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="form-checkbox-row">
-          {[
-            { campo: 'esInversion',   label: '📈 Es Inversión' },
-            { campo: 'esCostoDirecto', label: '⚙️ Costo Directo' },
-            { campo: 'esFijo',        label: '🔒 Gasto Fijo' },
-          ].map(({ campo, label }) => (
-            <label key={campo} className="form-checkbox-label">
-              <input
-                type="checkbox"
-                checked={form[campo]}
-                onChange={e => actualizar(campo, e.target.checked)}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-
-        <div className="form-actions">
-          <button className="btn-cancel" onClick={onCerrar}>Cancelar</button>
-          <button className="btn-primary" onClick={enviar} disabled={cargando}>
-            {cargando ? <RefreshCw size={14} className="spin" /> : <CheckCircle2 size={14} />}
-            <span>{cargando ? 'Guardando…' : 'Guardar'}</span>
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-/* ── Componente principal ────────────────────────────────────── */
 const TablaTransacciones = () => {
   const [transacciones, setTransacciones] = useState([]);
-  const [cargando, setCargando]           = useState(true);
-  const [error, setError]                 = useState('');
-  const [busqueda, setBusqueda]           = useState('');
-  const [filtroTipo, setFiltroTipo]       = useState('');
-  const [pagina, setPagina]               = useState(1);
-  const [modalAbierto, setModalAbierto]   = useState(false);
-  const [editando, setEditando]           = useState(null);
-  const [guardando, setGuardando]         = useState(false);
-  const [toast, setToast]                 = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const mostrarToast = (msg, tipo = 'ok') => {
-    setToast({ msg, tipo });
-    setTimeout(() => setToast(null), 3000);
-  };
+  // Form states
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    categoria: '',
+    monto: '',
+    esInversion: false,
+    esCostoDirecto: false,
+    esFijo: false,
+    fecha: new Date().toISOString().split('T')[0],
+    descripcion: ''
+  });
 
-  const cargarTransacciones = useCallback(async () => {
-    setCargando(true);
-    setError('');
+  const cargarDatos = async () => {
     try {
-      const filtros = {};
-      if (filtroTipo)   filtros.tipo = filtroTipo;
-      if (busqueda)     filtros.q    = busqueda;
-      const resp = await obtenerTransacciones(filtros);
-      setTransacciones(resp.data);
-      setPagina(1);
+      const data = await getTransacciones();
+      setTransacciones(data);
     } catch (e) {
-      setError(e.message);
+      console.error(e);
     } finally {
-      setCargando(false);
+      setLoading(false);
     }
-  }, [filtroTipo, busqueda]);
+  };
 
   useEffect(() => {
-    const id = setTimeout(cargarTransacciones, 300);
-    return () => clearTimeout(id);
-  }, [cargarTransacciones]);
+    cargarDatos();
+  }, []);
 
-  const handleGuardar = async (form) => {
-    setGuardando(true);
-    try {
-      if (editando?.id) {
-        await actualizarTransaccion(editando.id, form);
-        mostrarToast('Transacción actualizada ✔');
-      } else {
-        await crearTransaccion(form);
-        mostrarToast('Transacción creada ✔');
-      }
-      setModalAbierto(false);
-      setEditando(null);
-      cargarTransacciones();
-    } catch (e) {
-      mostrarToast(`Error: ${e.message}`, 'error');
-    } finally {
-      setGuardando(false);
-    }
+  const handleDelete = async (id) => {
+    if(!window.confirm('¿Eliminar esta transacción?')) return;
+    await eliminarTransaccion(id);
+    cargarDatos();
   };
 
-  const handleEliminar = async (id) => {
-    if (!window.confirm('¿Eliminar esta transacción?')) return;
-    try {
-      await eliminarTransaccion(id);
-      mostrarToast('Eliminada correctamente');
-      cargarTransacciones();
-    } catch (e) {
-      mostrarToast(`Error: ${e.message}`, 'error');
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await crearTransaccion({
+      ...formData,
+      monto: Number(formData.monto)
+    });
+    setShowForm(false);
+    cargarDatos();
+    setFormData({ ...formData, categoria: '', monto: '', descripcion: '' }); // reset basic info
   };
 
-  const tipoTx = (t) => {
-    if (t.esInversion) return 'inversion';
-    return t.monto > 0 ? 'ingreso' : 'gasto';
-  };
-
-  // Paginación
-  const totalPaginas = Math.max(1, Math.ceil(transacciones.length / ITEMS_POR_PAGINA));
-  const paginadas = transacciones.slice((pagina - 1) * ITEMS_POR_PAGINA, pagina * ITEMS_POR_PAGINA);
+  if (loading) return <div className="loader">Cargando datos...</div>;
 
   return (
-    <div className="tabla-wrapper">
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            key="toast"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            style={{
-              position: 'fixed', top: '80px', right: '2rem', zIndex: 300,
-              background: toast.tipo === 'error' ? 'rgba(244,63,142,0.15)' : 'rgba(0,255,163,0.12)',
-              border: `1px solid ${toast.tipo === 'error' ? 'var(--pink)' : 'var(--green)'}`,
-              borderRadius: 'var(--radius-md)', padding: '0.7rem 1.25rem',
-              color: toast.tipo === 'error' ? 'var(--pink)' : 'var(--green)',
-              fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
-              backdropFilter: 'blur(12px)',
-            }}
-          >
-            {toast.tipo === 'error' ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
-            {toast.msg}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Toolbar */}
-      <div className="tabla-toolbar">
-        <div className="tabla-search-wrap">
-          <Search size={14} />
-          <input
-            className="tabla-search"
-            placeholder="Buscar por categoría o descripción…"
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-          />
-        </div>
-
-        <div className="tabla-filter-btns">
-          {FILTROS.map(f => (
-            <button
-              key={f.id}
-              className={`filter-btn ${filtroTipo === f.id ? f.activeClass : ''}`}
-              onClick={() => setFiltroTipo(f.id)}
-            >
-              {f.icon} {f.label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          className="btn-primary"
-          onClick={() => { setEditando(null); setModalAbierto(true); }}
-          id="btn-nueva-transaccion"
-        >
-          <Plus size={15} />
-          <span>Nueva</span>
+    <div className="section-container" style={{ animation: 'fadeIn 0.5s ease' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>Registro de Operaciones</h2>
+        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Volver a la tabla' : <><Plus size={16} /> Nueva Transacción</>}
         </button>
       </div>
 
-      {/* Table */}
-      {cargando ? (
-        <div className="tabla-loading">Cargando desde el servidor…</div>
-      ) : error ? (
-        <div className="tabla-error">⚠️ {error}</div>
-      ) : (
-        <>
-          <div className="tabla-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Categoría</th>
-                  <th>Descripción</th>
-                  <th>Fecha</th>
-                  <th>Tipo</th>
-                  <th>Monto ($)</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <AnimatePresence>
-                  {paginadas.length === 0 ? (
-                    <tr><td colSpan={6} className="tabla-empty">No se encontraron transacciones</td></tr>
-                  ) : paginadas.map((tx, i) => {
-                    const tipo = tipoTx(tx);
-                    return (
-                      <motion.tr
-                        key={tx.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        transition={{ delay: i * 0.05 }}
-                      >
-                        <td className="cat-cell">{tx.categoria}</td>
-                        <td className="desc-cell">{tx.descripcion || '—'}</td>
-                        <td className="fecha-cell">{tx.fecha || '—'}</td>
-                        <td>
-                          <span className={`tipo-badge tipo-${tipo}`}>
-                            {tipo === 'ingreso' && <TrendingUp size={11} />}
-                            {tipo === 'gasto'   && <TrendingDown size={11} />}
-                            {tipo === 'inversion' && <Layers size={11} />}
-                            {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={tx.monto > 0 ? 'monto-positivo' : 'monto-negativo'}>
-                            {tx.monto > 0 ? '+' : ''}{tx.monto.toLocaleString()}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="acciones-cell">
-                            <button className="btn-icon edit" onClick={() => { setEditando(tx); setModalAbierto(true); }}>
-                              <Pencil size={13} />
-                            </button>
-                            <button className="btn-icon trash" onClick={() => handleEliminar(tx.id)}>
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </AnimatePresence>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="tabla-pagination">
-            <span>{transacciones.length} transacción{transacciones.length !== 1 ? 'es' : ''}</span>
-            <div className="pag-btns">
-              <button className="pag-btn" disabled={pagina === 1} onClick={() => setPagina(p => p - 1)}>
-                <ChevronLeft size={14} />
-              </button>
-              {Array.from({ length: totalPaginas }, (_, i) => (
-                <button
-                  key={i}
-                  className={`pag-btn ${pagina === i + 1 ? 'active' : ''}`}
-                  onClick={() => setPagina(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button className="pag-btn" disabled={pagina === totalPaginas} onClick={() => setPagina(p => p + 1)}>
-                <ChevronRight size={14} />
-              </button>
+      {showForm ? (
+        <motion.form 
+          onSubmit={handleSubmit}
+          className="glass"
+          style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', borderRadius: '16px' }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Monto (Usa negativo para gastos)</label>
+              <input 
+                type="number" 
+                required
+                value={formData.monto}
+                onChange={e => setFormData({ ...formData, monto: e.target.value })}
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '0.8rem', borderRadius: '8px', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Fecha</label>
+              <input 
+                type="date" 
+                required
+                value={formData.fecha}
+                onChange={e => setFormData({ ...formData, fecha: e.target.value })}
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '0.8rem', borderRadius: '8px', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Categoría (Ej: Ventas, Sueldos)</label>
+              <input 
+                type="text" 
+                required
+                value={formData.categoria}
+                onChange={e => setFormData({ ...formData, categoria: e.target.value })}
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '0.8rem', borderRadius: '8px', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Descripción</label>
+              <input 
+                type="text" 
+                value={formData.descripcion}
+                onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '0.8rem', borderRadius: '8px', color: '#fff' }}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                <input type="checkbox" checked={formData.esInversion} onChange={e => setFormData({...formData, esInversion: e.target.checked})} />
+                Es Inversión
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                <input type="checkbox" checked={formData.esCostoDirecto} onChange={e => setFormData({...formData, esCostoDirecto: e.target.checked})} />
+                Es Costo Directo
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                <input type="checkbox" checked={formData.esFijo} onChange={e => setFormData({...formData, esFijo: e.target.checked})} />
+                Es Gasto Fijo
+              </label>
             </div>
           </div>
-        </>
+          <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start', marginTop: '1rem' }}>Guardar Transacción</button>
+        </motion.form>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          {transacciones.map((t, idx) => (
+            <motion.div 
+              key={t.id}
+              className="glass"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', transition: 'all 0.2s' }}
+              whileHover={{ x: 4, backgroundColor: 'rgba(255,255,255,0.03)' }}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                <div style={{ 
+                  width: '40px', height: '40px', borderRadius: '10px', 
+                  background: t.monto > 0 ? 'var(--green-dim)' : 'var(--pink-dim)',
+                  color: t.monto > 0 ? 'var(--green)' : 'var(--pink)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {t.monto > 0 ? <ArrowUpRight /> : <ArrowDownRight />}
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>{t.categoria}</h4>
+                  <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    <span>{t.fecha}</span>
+                    <span>·</span>
+                    <span>{t.descripcion || 'Sin descripción'}</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                <span style={{ 
+                  fontSize: '1.15rem', 
+                  fontWeight: 700, 
+                  fontFamily: 'var(--font-mono)',
+                  color: t.monto > 0 ? 'var(--green)' : 'var(--text-primary)'
+                }}>
+                  {t.monto > 0 ? '+' : '-'}${Math.abs(t.monto).toLocaleString()}
+                </span>
+                <button onClick={() => handleDelete(t.id)} style={{ background: 'transparent', color: 'var(--pink)', opacity: 0.6 }} title="Eliminar">
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       )}
-
-      {/* Modal */}
-      <AnimatePresence>
-        {modalAbierto && (
-          <ModalTransaccion
-            transaccion={editando}
-            onGuardar={handleGuardar}
-            onCerrar={() => { setModalAbierto(false); setEditando(null); }}
-            cargando={guardando}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 };

@@ -1,48 +1,35 @@
-const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import transaccionesRutas from './rutas/transaccionesRutas.js';
+import kpisRutas from './rutas/kpisRutas.js';
+import presupuestoRutas from './rutas/presupuestoRutas.js';
 
-const transaccionesRutas  = require('./rutas/transaccionesRutas');
-const kpisRutas           = require('./rutas/kpisRutas');
-const presupuestoRutas    = require('./rutas/presupuestoRutas');
-const configuracionRutas  = require('./rutas/configuracionRutas');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const app  = express();
-const PORT = process.env.PORT || 3001;
+const servidor = express();
+const PORT = 3001;
 
-// ── Middleware ──
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3000'] }));
-app.use(express.json());
+// Middlewares
+servidor.use(cors());
+servidor.use(express.json());
 
-// ── Rutas API ──
-app.use('/api/transacciones', transaccionesRutas);
-app.use('/api/kpis',          kpisRutas);
-app.use('/api/presupuesto',   presupuestoRutas);
-app.use('/api',               configuracionRutas);   // /api/configuracion y /api/reporte
+// Rutas
+servidor.use('/api/transacciones', transaccionesRutas);
+servidor.use('/api/kpis', kpisRutas);
+servidor.use('/api/presupuesto', presupuestoRutas);
 
-// ── Health check ──
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, mensaje: 'Financiero Pro API corriendo 🚀', timestamp: new Date().toISOString() });
+const dbPath = path.join(__dirname, 'db.json');
+const readDB = () => JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+
+servidor.get('/api/configuracion', (req, res) => {
+  const db = readDB();
+  res.json({ empresa: db.empresa, periodo: db.periodo, ...db.configuracion });
 });
 
-// ── 404 catch-all ──
-app.use((req, res) => {
-  res.status(404).json({ ok: false, mensaje: `Ruta ${req.method} ${req.url} no encontrada` });
+servidor.listen(PORT, () => {
+  console.log(`Backend financiero corriendo en http://localhost:${PORT}`);
 });
-
-// ── Error handler ──
-app.use((err, req, res, next) => {
-  console.error('Error interno:', err.message);
-  res.status(500).json({ ok: false, mensaje: 'Error interno del servidor', detalle: err.message });
-});
-
-app.listen(PORT, () => {
-  console.log(`\n🟢 Financiero Pro API corriendo en http://localhost:${PORT}`);
-  console.log(`   → GET  /api/health`);
-  console.log(`   → GET  /api/kpis`);
-  console.log(`   → CRUD /api/transacciones`);
-  console.log(`   → CRUD /api/presupuesto`);
-  console.log(`   → GET  /api/reporte\n`);
-});
-
-module.exports = app;

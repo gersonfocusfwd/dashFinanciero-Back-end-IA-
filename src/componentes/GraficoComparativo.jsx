@@ -11,19 +11,17 @@ import {
 import { motion } from 'framer-motion';
 import '../estilos/Dashboard.css';
 
-const GraficoComparativo = ({ datos, historicoExterno }) => {
-  // Si el backend ya proveyó datos históricos, usarlos directamente
-  const dataParaGrafico = historicoExterno?.length > 0 ? historicoExterno : (() => {
-    const base = datos.ingresos / 6;
-    return [
-      { mes: 'Ene', ingresos: +(base * 0.72).toFixed(0), gastos: +(base * 0.60).toFixed(0), utilidad: +(base * 0.12).toFixed(0) },
-      { mes: 'Feb', ingresos: +(base * 0.85).toFixed(0), gastos: +(base * 0.68).toFixed(0), utilidad: +(base * 0.17).toFixed(0) },
-      { mes: 'Mar', ingresos: +(base * 0.90).toFixed(0), gastos: +(base * 0.71).toFixed(0), utilidad: +(base * 0.19).toFixed(0) },
-      { mes: 'Abr', ingresos: +(base * 1.05).toFixed(0), gastos: +(base * 0.78).toFixed(0), utilidad: +(base * 0.27).toFixed(0) },
-      { mes: 'May', ingresos: +(base * 1.12).toFixed(0), gastos: +(base * 0.82).toFixed(0), utilidad: +(base * 0.30).toFixed(0) },
-      { mes: 'Jun', ingresos: +(base * 1.20).toFixed(0), gastos: +(base * 0.85).toFixed(0), utilidad: +(datos.utilidadNeta).toFixed(0) },
-    ];
-  })();
+const GraficoComparativo = ({ datos }) => {
+  // Construir 6 meses ficticios con distribución realista basada en datos reales
+  const base = datos.ingresos / 6;
+  const dataParaGrafico = [
+    { mes: 'Ene', ingresos: +(base * 0.72).toFixed(0), gastos: +(base * 0.60).toFixed(0), utilidad: +(base * 0.12).toFixed(0) },
+    { mes: 'Feb', ingresos: +(base * 0.85).toFixed(0), gastos: +(base * 0.68).toFixed(0), utilidad: +(base * 0.17).toFixed(0) },
+    { mes: 'Mar', ingresos: +(base * 0.90).toFixed(0), gastos: +(base * 0.71).toFixed(0), utilidad: +(base * 0.19).toFixed(0) },
+    { mes: 'Abr', ingresos: +(base * 1.05).toFixed(0), gastos: +(base * 0.78).toFixed(0), utilidad: +(base * 0.27).toFixed(0) },
+    { mes: 'May', ingresos: +(base * 1.12).toFixed(0), gastos: +(base * 0.82).toFixed(0), utilidad: +(base * 0.30).toFixed(0) },
+    { mes: 'Jun', ingresos: +(base * 1.20).toFixed(0), gastos: +(base * 0.85).toFixed(0), utilidad: +(datos.utilidadNeta).toFixed(0) },
+  ];
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
